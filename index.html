@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TRYOUTKU – Tryout Online Gratis TKA, SMP, SMA & UTBK</title>
+<meta name="description" content="Tryout online gratis untuk TKA, SMP, SMA dan UTBK. Latihan soal online, nilai otomatis, pembahasan, ranking, dan simulasi ujian.">
+<meta property="og:title" content="TRYOUTKU – Latihan Sekarang, Siap Menghadapi Ujian"><meta property="og:description" content="Platform tryout online untuk siswa SMP & SMA."><meta property="og:type" content="website">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"EducationalOrganization","name":"TRYOUTKU","description":"Platform tryout online untuk siswa Indonesia"}</script>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<style>body{font-family:Poppins,Inter,sans-serif}#app>*{animation:f .3s ease}@keyframes f{from{opacity:0;transform:translateY(6px)}}</style>
+</head>
+<body class="bg-slate-50 text-slate-800 pb-20 md:pb-0">
+<header id="nav" class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-slate-100"></header>
+<main id="app"></main>
+<nav id="bnav" class="md:hidden fixed bottom-0 inset-x-0 z-30 bg-white border-t flex justify-around py-2 text-xs"></nav>
+<div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 hidden rounded-xl bg-slate-900 text-white px-4 py-2 text-sm"></div>
+<script>
+// ====== ISI DENGAN DATA SUPABASE KAMU (Project Settings > API) ======
+const SUPABASE_URL='https://YOUR-PROJECT.supabase.co', SUPABASE_KEY='YOUR-ANON-KEY', WA='6281234567890';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{flowType:'pkce'}});
+const S={u:null,p:null},$=s=>document.querySelector(s),app=$('#app');let T;
+const E=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const B='inline-flex items-center justify-center rounded-xl px-5 py-2.5 font-semibold transition ',
+ P=B+'bg-indigo-600 text-white hover:bg-indigo-700 shadow-sm',O=B+'border border-slate-200 bg-white hover:bg-slate-50',
+ card='rounded-2xl bg-white border border-slate-100 shadow-sm p-6',inp='w-full rounded-xl border border-slate-200 px-4 py-2.5 focus:outline-indigo-500';
+const RK={FREE:0,BASIC:1,PREMIUM:2},ep=p=>p&&p.plan_end&&new Date(p.plan_end)>new Date()?p.plan:'FREE';
+const bdg=a=>`<span class="text-xs font-bold px-2.5 py-1 rounded-full ${{FREE:'bg-emerald-100 text-emerald-700',BASIC:'bg-sky-100 text-sky-700',PREMIUM:'bg-amber-100 text-amber-700'}[a]}">${a=='FREE'?'GRATIS':a}</span>`;
+const toast=m=>{const t=$('#toast');t.textContent=m;t.hidden=false;setTimeout(()=>t.hidden=true,3500)};
+const rupiah=n=>'Rp'+Math.round(n).toLocaleString('id-ID');
+const go=h=>location.hash=h;
+
+async function loadUser(){const{data:{session}}=await sb.auth.getSession();S.u=session?.user||null;S.p=null;
+ if(S.u)S.p=(await sb.from('profiles').select('*').eq('id',S.u.id).single()).data;nav()}
+function nav(){const l=[['','Beranda'],['tryout','Tryout'],['paket','Paket'],['ranking','Ranking']];
+ $('#nav').innerHTML=`<div class="max-w-6xl mx-auto flex items-center gap-6 px-4 h-16"><a href="#/" class="text-xl font-extrabold text-indigo-600">TRYOUT<span class="text-amber-500">KU</span></a>
+ <div class="hidden md:flex gap-5 text-sm font-medium text-slate-600">${l.map(([k,t])=>`<a href="#/${k}" class="hover:text-indigo-600">${t}</a>`).join('')}</div>
+ <div class="ml-auto flex gap-2 items-center">${S.u?`${S.p?.role=='admin'?`<a href="#/admin" class="text-sm font-semibold text-amber-600">Admin</a>`:''}<a href="#/dashboard" class="${O} !py-2 text-sm">Dashboard</a><button onclick="out()" class="text-sm text-slate-500">Keluar</button>`:`<a href="#/masuk" class="${O} !py-2 text-sm">Masuk</a><a href="#/daftar" class="${P} !py-2 text-sm">Daftar Gratis</a>`}</div></div>`;
+ $('#bnav').innerHTML=[['dashboard','🏠','Home'],['tryout','📝','Tryout'],['riwayat','📊','Hasil'],['ranking','🏆','Ranking'],['profil','👤','Profil']].map(([k,i,t])=>`<a href="#/${k}" class="flex flex-col items-center px-2"><span class="text-lg">${i}</span>${t}</a>`).join('')}
+async function out(){await sb.auth.signOut();await loadUser();go('#/')}
+
+const R={'':home,tryout:catalog,paket:pricing,ranking,masuk:auth,daftar:auth,dashboard,detail,ujian,hasil,riwayat,profil,admin};
+const PRIV=['admin','dashboard','ujian','hasil','riwayat','profil'];
+async function route(){const[k,id]=location.hash.slice(2).split('/');clearInterval(T);window.scrollTo(0,0);
+ if(PRIV.includes(k)&&!S.u)return go('#/masuk');
+ $('#bnav').style.display=S.u&&k!='ujian'?'':'none';
+ app.innerHTML='<p class="p-10 text-center text-slate-400">Memuat…</p>';
+ try{await(R[k||'']||home)(id,k)}catch(e){app.innerHTML=`<div class="p-10 text-center"><p class="mb-4">${E(e.message||e)}</p><a href="#/tryout" class="${P}">Kembali</a></div>`}}
+
+// ===== LANDING =====
+function home(){const f=[['⏱️','Tryout Realistis','Simulasi ujian dengan sistem timer seperti ujian sebenarnya.'],['✅','Nilai Otomatis','Hasil langsung tersedia setelah menyelesaikan tryout.'],['📖','Pembahasan Lengkap','Pelajari kesalahanmu melalui pembahasan setiap soal.'],['📈','Analisis Kemampuan','Ketahui materi yang sudah dikuasai dan yang masih perlu dipelajari.'],['🏆','Ranking','Bandingkan hasilmu dengan peserta lainnya.'],['🗂️','Riwayat Belajar','Pantau perkembangan nilai dari waktu ke waktu.']];
+ app.innerHTML=`<section class="max-w-6xl mx-auto px-4 py-12 md:py-20 grid md:grid-cols-2 gap-10 items-center">
+ <div><span class="text-xs font-bold bg-amber-100 text-amber-700 px-3 py-1 rounded-full">🎁 Coba Premium gratis 3 hari</span>
+ <h1 class="text-3xl md:text-5xl font-extrabold leading-tight mt-4">Uji Kemampuanmu. Temukan Kelemahanmu. <span class="text-indigo-600">Raih Nilai Terbaikmu.</span></h1>
+ <p class="mt-4 text-slate-600">Platform tryout online untuk membantu kamu mempersiapkan ujian dengan latihan soal, pembahasan, analisis nilai, dan simulasi ujian.</p>
+ <div class="flex flex-wrap gap-3 mt-6"><a href="#/daftar" class="${P}">Mulai Tryout Gratis</a><a href="#/paket" class="${O}">Lihat Paket</a></div>
+ <div class="grid grid-cols-4 gap-2 mt-8 text-center">${[['10.000+','Siswa'],['500.000+','Soal'],['1.000+','Tryout'],['4.9/5','Rating']].map(([a,b])=>`<div><b class="text-indigo-600 text-lg">${a}</b><p class="text-xs text-slate-500">${b}</p></div>`).join('')}</div></div>
+ <div class="${card} !p-5 rotate-1 shadow-xl"><div class="flex justify-between items-center"><b>Tryout TKA Matematika</b><b class="font-mono text-red-500">00:58:42</b></div>
+ <p class="mt-4 font-medium">1. Hasil dari 25 × 4 adalah ...</p>${['50','75','100','125'].map((x,i)=>`<div class="mt-2 rounded-xl border p-3 text-sm ${i==2?'border-indigo-600 bg-indigo-50':''}">${'ABCD'[i]}. ${x}</div>`).join('')}
+ <div class="mt-4 h-2 rounded bg-slate-100"><div class="h-2 rounded bg-emerald-500 w-1/3"></div></div></div></section>
+ <section class="max-w-6xl mx-auto px-4 py-12"><h2 class="text-2xl md:text-3xl font-bold text-center mb-8">Semua yang Kamu Butuhkan untuk Persiapan Ujian</h2>
+ <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">${f.map(([i,t,d])=>`<div class="${card}"><div class="text-3xl">${i}</div><h3 class="font-bold mt-3">${t}</h3><p class="text-sm text-slate-500 mt-1">${d}</p></div>`).join('')}</div>
+ <div class="text-center mt-10"><a href="#/daftar" class="${P}">Tes Kemampuanmu Sekarang</a></div></section>`}
+
+// ===== KATALOG =====
+const F={s:'',a:'',k:''};
+async function catalog(){const{data}=await sb.from('tryouts').select('*').order('id');
+ const sel=(k,o,ph)=>`<select onchange="F.${k}=this.value;catalog()" class="${inp} !w-auto"><option value="">${ph}</option>${o.map(x=>`<option ${F[k]==x[0]?'selected':''} value="${x[0]}">${x[1]}</option>`).join('')}</select>`;
+ const subj=[...new Set(data.map(t=>t.subject))],my=ep(S.p),list=data.filter(t=>(!F.s||t.subject==F.s)&&(!F.a||t.access==F.a)&&(!F.k||t.kelas==F.k));
+ app.innerHTML=`<div class="max-w-6xl mx-auto px-4 py-8"><h1 class="text-2xl font-bold mb-4">Pilih Tryout Kamu</h1>
+ <div class="flex flex-wrap gap-2 mb-6">${sel('s',subj.map(x=>[x,x]),'Mata Pelajaran')}${sel('k',[4,5,6,7,8,9,10,11,12].map(x=>[x,'Kelas '+x]),'Kelas')}${sel('a',[['FREE','Gratis'],['BASIC','Basic'],['PREMIUM','Premium']],'Status')}</div>
+ <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">${list.map(t=>`<div class="${card} flex flex-col"><div class="flex justify-between">${bdg(t.access)}<span class="text-xs text-slate-400">${t.difficulty}</span></div>
+ <h3 class="font-bold mt-3">${E(t.title)}</h3><p class="text-sm text-slate-500 mt-1">${t.jenjang} · Kelas ${t.kelas} · ${E(t.subject)}<br>⏱ ${t.duration_min} menit</p>
+ <a href="#/${S.u&&RK[t.access]>RK[my]?'paket':'detail/'+t.id}" class="${RK[t.access]>RK[my]&&S.u?O:P} mt-5">${S.u&&RK[t.access]>RK[my]?'Upgrade Paket':'Mulai Tryout'}</a></div>`).join('')||'<p class="text-slate-400">Tidak ada tryout.</p>'}</div></div>`}
+
+async function detail(id){const{data:t}=await sb.from('tryouts').select('*').eq('id',id).single();
+ app.innerHTML=`<div class="max-w-2xl mx-auto px-4 py-10"><div class="${card}"><div>${bdg(t.access)}</div><h1 class="text-2xl font-bold mt-3">${E(t.title)}</h1>
+ <p class="text-slate-500 mt-1">${t.duration_min} Menit · Pilihan Ganda · Tingkat: ${t.difficulty}</p>
+ <ol class="list-decimal ml-5 mt-5 space-y-1 text-sm text-slate-600"><li>Pastikan koneksi internet stabil.</li><li>Waktu akan berjalan setelah tryout dimulai.</li><li>Jawaban dapat diubah selama waktu masih tersedia.</li><li>Setelah waktu habis, tryout otomatis dikumpulkan.</li></ol>
+ <button onclick="startT(${t.id})" class="${P} w-full mt-6">Mulai Tryout</button></div></div>`}
+async function startT(id){if(!S.u)return go('#/masuk');const{data,error}=await sb.rpc('start_attempt',{tid:id});if(error)return toast(error.message);go('#/ujian/'+data)}
+
+// ===== PRICING =====
+let YR=false;
+function pricing(){const pl=[['FREE','Gratis',0,'Mulai Gratis',['Akses tryout gratis','Maks. 3 tryout/bulan','Nilai otomatis','Ranking','✕ Pembahasan lengkap','✕ Tryout Premium']],
+ ['BASIC','Basic',29000,'Berlangganan Basic',['Semua fitur Gratis','20 tryout/bulan','Pembahasan lengkap','Riwayat & analisis nilai','Tanpa iklan']],
+ ['PREMIUM','Premium',59000,'Berlangganan Premium',['Semua fitur Basic','Unlimited tryout','Semua tryout Premium','Prediksi skor','Prioritas tryout baru']]];
+ app.innerHTML=`<div class="max-w-5xl mx-auto px-4 py-10 text-center"><h1 class="text-3xl font-bold">Pilih Paket Belajarmu</h1>
+ <div class="inline-flex mt-5 rounded-full bg-white border p-1"><button onclick="YR=false;pricing()" class="px-4 py-1.5 rounded-full text-sm ${YR?'':'bg-indigo-600 text-white'}">Bulanan</button><button onclick="YR=true;pricing()" class="px-4 py-1.5 rounded-full text-sm ${YR?'bg-indigo-600 text-white':''}">Tahunan <b class="text-amber-500">HEMAT 30%</b></button></div>
+ <div class="grid md:grid-cols-3 gap-5 mt-8 text-left">${pl.map(([k,n,pr,cta,fs])=>`<div class="${card} ${k=='BASIC'?'ring-2 ring-indigo-600':''}">${k=='BASIC'?'<span class="text-xs font-bold text-indigo-600">PALING POPULER</span>':k=='PREMIUM'?'<span class="text-xs font-bold text-amber-600">REKOMENDASI</span>':'<span class="text-xs">&nbsp;</span>'}
+ <h3 class="text-xl font-bold">${n}</h3><p class="text-3xl font-extrabold my-2">${rupiah(YR?pr*12*.7:pr)}<span class="text-sm font-normal text-slate-400">/${YR?'tahun':'bulan'}</span></p>
+ <ul class="space-y-2 text-sm my-5">${fs.map(f=>`<li class="${f[0]=='✕'?'text-slate-400':''}">${f[0]=='✕'?f:'✓ '+f}</li>`).join('')}</ul>
+ <button onclick="buy('${k}')" class="${k=='FREE'?O:P} w-full">${cta}</button></div>`).join('')}</div></div>`}
+function buy(k){if(!S.u)return go('#/daftar');if(k=='FREE')return go('#/tryout');
+ window.open(`https://wa.me/${WA}?text=${encodeURIComponent(`Halo, saya ingin berlangganan TRYOUTKU ${k} (${YR?'tahunan':'bulanan'}). Email: ${S.u.email}`)}`)}
+
+// ===== AUTH =====
+function auth(_,k){const reg=k=='daftar';
+ app.innerHTML=`<div class="max-w-md mx-auto px-4 py-10"><div class="${card}"><h1 class="text-2xl font-bold mb-4">${reg?'Buat Akun Gratis':'Masuk'}</h1>
+ <div id="f" class="space-y-3">${reg?`<input id="n" class="${inp}" placeholder="Nama lengkap"><input id="w" class="${inp}" placeholder="Nomor WhatsApp"><div class="grid grid-cols-2 gap-3"><select id="j" class="${inp}"><option>SMP</option><option selected>SMA</option><option>SD</option></select><input id="k" type="number" min="4" max="12" class="${inp}" placeholder="Kelas"></div><input id="s" class="${inp}" placeholder="Sekolah">`:''}
+ <input id="e" type="email" class="${inp}" placeholder="Email"><input id="p" type="password" class="${inp}" placeholder="Password (min. 6 karakter)">
+ ${reg?`<input id="p2" type="password" class="${inp}" placeholder="Konfirmasi password"><label class="text-xs flex gap-2"><input id="tc" type="checkbox"> Saya menyetujui Syarat & Ketentuan dan Kebijakan Privasi.</label>`:''}
+ <button onclick="sub(${reg})" class="${P} w-full">${reg?'Daftar Sekarang':'Masuk'}</button>
+ <button onclick="sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.href.split('#')[0]}})" class="${O} w-full">Lanjut dengan Google</button></div>
+ <p class="text-sm text-center mt-4">${reg?'Sudah punya akun? <a class="text-indigo-600" href="#/masuk">Masuk</a>':'Belum punya akun? <a class="text-indigo-600" href="#/daftar">Daftar gratis</a>'}</p></div></div>`}
+async function sub(reg){const v=i=>$('#'+i)?.value.trim(),e=v('e'),p=v('p');let r;
+ if(reg){if(!v('n')||!e||p.length<6)return toast('Lengkapi data (password min. 6 karakter)');if(p!=v('p2'))return toast('Konfirmasi password tidak sama');if(!$('#tc').checked)return toast('Setujui Syarat & Ketentuan dulu');
+  r=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:v('n'),whatsapp:v('w'),jenjang:v('j'),kelas:v('k'),sekolah:v('s')}}});
+  if(!r.error&&!r.data.session)return toast('Cek emailmu untuk konfirmasi akun.')}
+ else r=await sb.auth.signInWithPassword({email:e,password:p});
+ if(r.error)return toast(r.error.message);await loadUser();go('#/dashboard')}
+
+// ===== DASHBOARD / RIWAYAT / PROFIL =====
+const myAtt=async()=>(await sb.from('attempts').select('*,tryouts(title,duration_min)').not('finished_at','is',null).order('finished_at',{ascending:false})).data||[];
+async function dashboard(){const a=await myAtt(),{data:op}=await sb.from('attempts').select('id,tryouts(title)').is('finished_at',null).limit(1),{data:lb}=await sb.from('leaderboard').select('user_id').order('score',{ascending:false});
+ const sc=a.map(x=>x.score),rk=(lb||[]).findIndex(x=>x.user_id==S.u.id)+1,st=[['Total Tryout',a.length],['Rata-rata',sc.length?Math.round(sc.reduce((x,y)=>x+y,0)/sc.length):'-'],['Nilai Tertinggi',sc.length?Math.max(...sc):'-'],['Ranking',rk?'#'+rk:'-']];
+ app.innerHTML=`<div class="max-w-5xl mx-auto px-4 py-8 space-y-6"><div class="flex items-center gap-3 flex-wrap"><h1 class="text-2xl font-bold">Hallo, ${E(S.p?.full_name||'Siswa')} 👋</h1>${bdg(ep(S.p))}</div>
+ ${ep(S.p)=='FREE'?`<div class="${card} bg-indigo-50 flex justify-between items-center gap-3 flex-wrap"><span>Buka pembahasan & semua tryout.</span><a href="#/paket" class="${P}">Upgrade ke Premium</a></div>`:''}
+ ${op?.[0]?`<div class="${card} flex justify-between items-center gap-3"><div><b>${E(op[0].tryouts.title)}</b><p class="text-sm text-slate-500">Tryout belum selesai</p></div><a href="#/ujian/${op[0].id}" class="${P}">Lanjutkan</a></div>`:''}
+ <div class="grid grid-cols-2 md:grid-cols-4 gap-4">${st.map(([t,v])=>`<div class="${card} !p-4"><p class="text-xs text-slate-500">${t}</p><p class="text-2xl font-extrabold text-indigo-600">${v}</p></div>`).join('')}</div>
+ <a href="#/tryout" class="${P}">Mulai Belajar Sekarang</a></div>`}
+async function riwayat(){const a=await myAtt();
+ app.innerHTML=`<div class="max-w-5xl mx-auto px-4 py-8"><h1 class="text-2xl font-bold mb-4">Riwayat Tryout</h1><div class="${card} !p-0 overflow-x-auto"><table class="w-full text-sm"><tr class="text-left text-slate-500 border-b"><th class="p-3">Tanggal</th><th>Tryout</th><th>Nilai</th><th>Benar/Salah</th><th></th></tr>
+ ${a.map(x=>`<tr class="border-b"><td class="p-3">${new Date(x.finished_at).toLocaleDateString('id-ID',{day:'numeric',month:'short',year:'numeric'})}</td><td>${E(x.tryouts.title)}</td><td><b>${x.score}</b></td><td>${x.correct}/${x.wrong}</td><td><a class="text-indigo-600" href="#/hasil/${x.id}">Lihat Hasil</a></td></tr>`).join('')||'<tr><td class="p-6 text-slate-400">Belum ada tryout.</td></tr>'}</table></div></div>`}
+function profil(){const p=S.p,my=ep(p);
+ app.innerHTML=`<div class="max-w-md mx-auto px-4 py-8"><div class="${card}"><div class="w-16 h-16 rounded-full bg-indigo-100 grid place-items-center text-2xl font-bold text-indigo-600">${E((p.full_name||'?')[0])}</div>
+ <h1 class="text-xl font-bold mt-3">${E(p.full_name)}</h1><p class="text-sm text-slate-500">${E(S.u.email)}<br>${E(p.whatsapp||'')}<br>${E(p.sekolah||'')} · ${p.jenjang||''} Kelas ${p.kelas||'-'}</p>
+ <div class="mt-4 flex items-center gap-2">${bdg(my)}${my!='FREE'?`<span class="text-sm text-slate-500">s/d ${new Date(p.plan_end).toLocaleDateString('id-ID')}</span>`:p.plan!='FREE'?'<span class="text-sm text-red-500">Masa berlangganan kamu telah berakhir.</span>':''}</div>
+ <a href="#/paket" class="${P} mt-4">${my=='FREE'?'Perpanjang Sekarang':'Kelola Langganan'}</a></div></div>`}
+
+// ===== UJIAN =====
+async function ujian(id){const{data:d,error}=await sb.rpc('get_exam',{aid:id});if(error)throw error;if(d.attempt.finished_at)return go('#/hasil/'+id);
+ const qs=d.questions,ans={...d.attempt.answers,...JSON.parse(localStorage['a'+id]||'{}')},fl=new Set();let i=0;const end=Date.now()+d.left*1000;
+ const fin=async()=>{clearInterval(T);const{error}=await sb.rpc('submit_attempt',{aid:id});if(error)return toast(error.message);localStorage.removeItem('a'+id);go('#/hasil/'+id)};
+ const tick=()=>{const s=Math.max(0,Math.round((end-Date.now())/1000)),e=$('#tm');if(e){e.textContent=[s/3600|0,s/60%60|0,s%60].map(x=>String(x).padStart(2,'0')).join(':');e.className='text-2xl font-mono font-bold '+(s<=300?'text-red-600 animate-pulse':'')}if(!s){clearInterval(T);fin()}};
+ window._g=n=>{i=n;draw()};window._n=n=>{i+=n;draw()};window._f=()=>{const q=qs[i].id;fl.has(q)?fl.delete(q):fl.add(q);draw()};
+ window._o=k=>{ans[qs[i].id]=k;localStorage['a'+id]=JSON.stringify(ans);sb.rpc('save_answers',{aid:id,ans});draw()}; // auto-save tiap pilih jawaban
+ window._s=()=>{const b=qs.filter(x=>!ans[x.id]).length;if(confirm((b?`Kamu masih memiliki ${b} soal yang belum dijawab.\n`:'')+'Apakah kamu yakin ingin mengumpulkan jawaban?'))fin()};
+ function draw(){const q=qs[i],grid=qs.map((x,n)=>`<button onclick="_g(${n})" class="h-10 w-10 rounded-lg text-sm font-semibold ${n==i?'ring-2 ring-indigo-600 ':''}${fl.has(x.id)?'bg-amber-400 text-white':ans[x.id]?'bg-emerald-500 text-white':'bg-slate-100'}">${n+1}</button>`).join('');
+  app.innerHTML=`<div class="max-w-6xl mx-auto p-3 md:p-4 grid md:grid-cols-[260px_1fr] gap-4"><aside class="${card} !p-4 hidden md:block h-fit"><p class="font-semibold mb-3">Nomor Soal</p><div class="grid grid-cols-5 gap-2">${grid}</div><p class="text-xs text-slate-500 mt-4">Hijau: dijawab · Kuning: ditandai · Abu: belum</p></aside>
+  <section class="${card}"><div class="flex justify-between items-center mb-3 sticky top-16 bg-white py-2 z-10"><h1 class="font-bold text-sm md:text-base">${E(d.tryout.title)}</h1><div id="tm" class="text-2xl font-mono font-bold"></div></div>
+  <details class="md:hidden mb-4"><summary class="font-semibold">Nomor Soal</summary><div class="grid grid-cols-6 gap-2 mt-2">${grid}</div></details>
+  <p class="text-lg font-medium mb-4">${i+1}. ${E(q.body)}</p><div class="space-y-3">${'abcd'.split('').map(k=>`<button onclick="_o('${k}')" class="w-full text-left rounded-xl border p-4 ${ans[q.id]==k?'border-indigo-600 bg-indigo-50':'border-slate-200 hover:bg-slate-50'}"><b>${k.toUpperCase()}.</b> ${E(q[k])}</button>`).join('')}</div>
+  <div class="flex gap-2 mt-6 flex-wrap"><button onclick="_n(-1)" class="${O}" ${i?'':'disabled'}>Sebelumnya</button><button onclick="_f()" class="${O}">${fl.has(q.id)?'Lepas Tanda':'Tandai Soal'}</button><button onclick="_n(1)" class="${P}" ${i<qs.length-1?'':'disabled'}>Selanjutnya</button><button onclick="_s()" class="${B}bg-emerald-600 text-white ml-auto">Kumpulkan Jawaban</button></div></section></div>`;tick()}
+ draw();T=setInterval(tick,1000)}
+
+// ===== HASIL + PEMBAHASAN =====
+async function hasil(id){const get=async()=>(await sb.from('attempts').select('*,tryouts(title)').eq('id',id).single()).data;let a=await get();
+ if(!a.finished_at){await sb.rpc('submit_attempt',{aid:id});a=await get()}
+ const{data:rv}=await sb.rpc('get_review',{aid:id}),m=Math.round((new Date(a.finished_at)-new Date(a.started_at))/60000);
+ app.innerHTML=`<div class="max-w-3xl mx-auto px-4 py-8 space-y-5"><div class="${card} text-center"><h1 class="text-2xl font-bold">Tryout Selesai! 🎉</h1><p class="text-sm text-slate-500">${E(a.tryouts.title)}</p>
+ <p class="text-6xl font-extrabold text-indigo-600 my-4">${a.score}<span class="text-2xl text-slate-400"> / 100</span></p><p class="text-sm">Benar: <b>${a.correct}</b> · Salah: <b>${a.wrong}</b> · Kosong: <b>${a.blank}</b> · Waktu: <b>${m} menit</b></p>
+ <div class="flex gap-2 justify-center mt-5"><a href="#/ranking" class="${O}">Lihat Ranking</a><a href="#/tryout" class="${P}">Tryout Lainnya</a></div></div>
+ ${rv.unlocked?'':`<div class="${card} bg-amber-50 text-center">🔒 Pembahasan tersedia untuk pengguna Basic & Premium<br><a href="#/paket" class="${P} mt-3">Upgrade Sekarang</a></div>`}
+ ${(rv.items||[]).map((q,n)=>{const st=!q.mine?['—','Tidak dijawab','bg-slate-50']:q.mine==q.correct?['✓','Benar','bg-emerald-50']:['✕','Salah','bg-red-50'];
+  return`<div class="${card} ${st[2]}"><b>Soal ${n+1}</b> <span class="text-sm float-right">${st[0]} ${st[1]}</span><p class="my-2">${E(q.body)}</p><p class="text-sm">Jawaban kamu: <b>${q.mine?q.mine.toUpperCase()+'. '+E(q[q.mine]):'-'}</b><br>Jawaban benar: <b>${q.correct.toUpperCase()}. ${E(q[q.correct])}</b></p>
+  ${q.explanation?`<p class="text-sm mt-2 text-slate-600"><b>Pembahasan:</b> ${E(q.explanation)}</p>`:''}</div>`}).join('')}</div>`}
+
+// ===== ADMIN =====
+let AT='dash',AQ=0;const ia=`${inp} !py-2 text-sm`,V=i=>$('#'+i).value.trim();
+const adm=async p=>{const{error}=await p;if(error)toast(error.message);admin()};
+async function admin(){if(S.p?.role!='admin')throw'Akses ditolak: hanya admin.';let b='';
+ if(AT=='dash'){const{data:s,error}=await sb.rpc('admin_stats');if(error)throw error;const mx=Math.max(1,...s.daily.map(x=>x.n));
+  b=`<div class="grid grid-cols-2 md:grid-cols-3 gap-4">${[['Total User',s.users],['User Berlangganan',s.paid],['Conversion',s.users?Math.round(100*s.paid/s.users)+'%':'0%'],['Tryout Dikerjakan',s.attempts],['Total Tryout',s.tryouts],['Total Soal',s.questions]].map(([t,v])=>`<div class="${card} !p-4"><p class="text-xs text-slate-500">${t}</p><p class="text-2xl font-extrabold text-indigo-600">${v}</p></div>`).join('')}</div>
+  <div class="${card} mt-4"><b>Tryout selesai (7 hari)</b><div class="flex items-end gap-2 h-32 mt-4">${s.daily.map(x=>`<div class="flex-1 text-center text-xs"><div class="bg-indigo-500 rounded-t" style="height:${x.n/mx*100}px"></div>${x.d}<br>${x.n}</div>`).join('')}</div></div>`}
+ if(AT=='users'){const{data:u,error}=await sb.rpc('admin_users');if(error)throw error;
+  b=`<div class="${card} !p-0 overflow-x-auto"><table class="w-full text-sm"><tr class="text-left text-slate-500 border-b"><th class="p-3">User</th><th>Paket</th><th>Ubah paket</th></tr>${u.map(x=>`<tr class="border-b"><td class="p-3">${E(x.name)}<br><span class="text-xs text-slate-400">${E(x.email)}</span></td><td>${bdg(x.eff)}<br><span class="text-xs text-slate-400">${x.eff!='FREE'?'s/d '+new Date(x.plan_end).toLocaleDateString('id-ID'):''}</span></td>
+  <td class="py-2"><select id="p${x.id}" class="${ia} !w-auto"><option>FREE</option><option>BASIC</option><option>PREMIUM</option></select> <input id="d${x.id}" type="number" value="30" class="${ia} !w-20"> hari <button onclick="adm(sb.rpc('admin_set_plan',{uid:'${x.id}',p:V('p${x.id}'),days:+V('d${x.id}')}))" class="${P} !py-1.5 text-sm">Simpan</button></td></tr>`).join('')}</table></div>`}
+ if(AT=='try'){const{data:t}=await sb.from('tryouts').select('*').order('id');
+  b=`<div class="${card} grid sm:grid-cols-4 gap-2 mb-4"><input id="tt" class="${ia} sm:col-span-4" placeholder="Nama tryout"><select id="tj" class="${ia}"><option>SMP</option><option selected>SMA</option><option>SD</option></select><input id="tk" type="number" class="${ia}" placeholder="Kelas"><input id="ts" class="${ia}" placeholder="Mata pelajaran"><select id="tf" class="${ia}"><option>Mudah</option><option selected>Sedang</option><option>Sulit</option></select><input id="td" type="number" value="60" class="${ia}" placeholder="Durasi (menit)"><select id="ta" class="${ia}"><option>FREE</option><option>BASIC</option><option>PREMIUM</option></select>
+  <button onclick="adm(sb.from('tryouts').insert({title:V('tt'),jenjang:V('tj'),kelas:+V('tk'),subject:V('ts'),difficulty:V('tf'),duration_min:+V('td'),access:V('ta')}))" class="${P} !py-2 sm:col-span-2">Tambah Tryout</button></div>
+  ${t.map(x=>`<div class="${card} !p-4 mb-2 flex items-center gap-3 flex-wrap"><div class="flex-1"><b>${E(x.title)}</b> ${bdg(x.access)}<p class="text-xs text-slate-500">${x.jenjang} · Kelas ${x.kelas} · ${E(x.subject)} · ${x.duration_min} mnt · ${x.published?'Publish':'Draft'}</p></div>
+  <button onclick="adm(sb.from('tryouts').update({published:${!x.published}}).eq('id',${x.id}))" class="${O} !py-1.5 text-sm">${x.published?'Sembunyikan':'Publish'}</button><button onclick="confirm('Hapus tryout beserta soalnya?')&&adm(sb.from('tryouts').delete().eq('id',${x.id}))" class="text-sm text-red-600">Hapus</button></div>`).join('')}`}
+ if(AT=='soal'){const{data:t}=await sb.from('tryouts').select('id,title').order('id');AQ=AQ||t[0]?.id;const{data:q}=await sb.from('questions').select('*').eq('tryout_id',AQ).order('id');
+  b=`<select onchange="AQ=+this.value;admin()" class="${ia} mb-4">${t.map(x=>`<option value="${x.id}" ${x.id==AQ?'selected':''}>${E(x.title)}</option>`).join('')}</select>
+  <div class="${card} grid sm:grid-cols-2 gap-2 mb-4"><textarea id="qbody" class="${ia} sm:col-span-2" placeholder="Pertanyaan"></textarea>${'abcd'.split('').map(k=>`<input id="q${k}" class="${ia}" placeholder="Pilihan ${k.toUpperCase()}">`).join('')}<select id="qk" class="${ia}"><option value="a">Jawaban benar: A</option><option value="b">B</option><option value="c">C</option><option value="d">D</option></select><input id="qe" class="${ia}" placeholder="Pembahasan">
+  <button onclick="adm(sb.from('questions').insert({tryout_id:AQ,body:V('qbody'),a:V('qa'),b:V('qb'),c:V('qc'),d:V('qd'),correct:V('qk'),explanation:V('qe')}))" class="${P} !py-2 sm:col-span-2">Tambah Soal</button></div>
+  ${(q||[]).map((x,n)=>`<div class="${card} !p-4 mb-2 flex gap-3"><div class="flex-1 text-sm"><b>${n+1}. ${E(x.body)}</b><p class="text-slate-500">A. ${E(x.a)} · B. ${E(x.b)} · C. ${E(x.c)} · D. ${E(x.d)} · <b class="text-emerald-600">Benar: ${x.correct.toUpperCase()}</b></p></div><button onclick="adm(sb.from('questions').delete().eq('id',${x.id}))" class="text-sm text-red-600">Hapus</button></div>`).join('')}`}
+ app.innerHTML=`<div class="max-w-5xl mx-auto px-4 py-8"><h1 class="text-2xl font-bold mb-4">Admin</h1><div class="flex gap-2 mb-5 overflow-x-auto">${[['dash','Dashboard'],['users','Users'],['try','Tryout'],['soal','Soal']].map(([k,t])=>`<button onclick="AT='${k}';admin()" class="${k==AT?P:O} !py-2 text-sm">${t}</button>`).join('')}</div>${b}</div>`}
+
+// ===== RANKING =====
+async function ranking(){const{data}=await sb.from('leaderboard').select('*').order('score',{ascending:false}).limit(50);const md=['🥇','🥈','🥉'];
+ app.innerHTML=`<div class="max-w-3xl mx-auto px-4 py-8"><h1 class="text-2xl font-bold mb-4">Ranking Nasional</h1><div class="${card} !p-0 overflow-x-auto"><table class="w-full text-sm"><tr class="text-left text-slate-500 border-b"><th class="p-3">Rank</th><th>Nama</th><th>Sekolah</th><th>Skor</th><th>Tryout</th></tr>
+ ${(data||[]).map((x,n)=>`<tr class="border-b ${x.user_id==S.u?.id?'bg-indigo-50 font-semibold':''}"><td class="p-3">${md[n]||n+1}</td><td>${E(x.full_name)}</td><td>${E(x.sekolah)}</td><td>${x.score}</td><td>${x.tryouts}</td></tr>`).join('')||'<tr><td class="p-6 text-slate-400">Belum ada data.</td></tr>'}</table></div></div>`}
+
+sb.auth.onAuthStateChange(()=>{});window.addEventListener('hashchange',route);
+loadUser().then(route);
+</script></body></html>
